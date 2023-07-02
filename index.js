@@ -28,6 +28,13 @@ app.get("/fill-db", async (req, res) => {
     },
   );
   const { results: allFirstPokemons } = await fetchAllFirstPokemons.json();
+  const currentDBResponse = await db
+    .many("SELECT * FROM pokemons")
+    .catch(() => []); // este catch hace que si la tabla esta vacia retorna un array vacio en vez de un error
+  const currentPokemonsInDB = new Map(); // esta logica es para chequear si el pokemon ya esta en la db, si ya esta no lo agrega
+  currentDBResponse.forEach((pokemon) => {
+    currentPokemonsInDB.set(pokemon.id, pokemon);
+  });
   allFirstPokemons.forEach(async (pokemon) => {
     const fetchPokemon = await fetch(pokemon.url, {
       method: "GET",
@@ -37,9 +44,13 @@ app.get("/fill-db", async (req, res) => {
     const { id, name, types } = pokemonData;
     const type1 = types[0].type.name;
     const type2 = types[1] ? types[1].type.name : null;
-    await db.none(
-      `INSERT INTO pokemons (id, name, type1, type2) VALUES (${id}, '${name}', '${type1}', '${type2}');`,
-    );
+
+    if (!currentPokemonsInDB.has(id)) {
+      // si el pokemon no esta en la db lo agrega
+      await db.none(
+        `INSERT INTO pokemons (id, name, type1, type2) VALUES (${id}, '${name}', '${type1}', '${type2}');`,
+      );
+    }
   });
   // estuve chequeando que url esta funcionando para traer los sprites mas bonitos y consegui esta: https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/151.png
   // solo tienen que cambiar el ultimo numero por el id del pokemon que quieran
